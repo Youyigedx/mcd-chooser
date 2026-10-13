@@ -1,0 +1,10 @@
+# 真 Token，绝不提交
+.env
+.env.local
+
+# 依赖（本项目零依赖，留着以防万一）
+node_modules/
+
+# 运行期产物
+data/cache/
+*.log

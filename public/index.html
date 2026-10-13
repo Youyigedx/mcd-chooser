@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>选餐助手 · 五个模式替你决定今天吃什么</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header class="top">
+  <h1>选餐助手</h1>
+  <p class="tagline">不想纠结？让机器替你决定今天吃什么。</p>
+</header>
+
+<section class="store-bar">
+  <div class="field">
+    <label for="city">城市</label>
+    <input id="city" value="重庆" autocomplete="off">
+  </div>
+  <div class="field">
+    <label for="keyword">位置关键词</label>
+    <input id="keyword" value="沙坪坝" autocomplete="off">
+  </div>
+  <button id="find-stores" class="btn primary">找门店</button>
+  <div id="store-list" class="store-list"></div>
+</section>
+
+<nav class="modes" id="modes">
+  <button class="mode" data-mode="month">
+    <span class="mode-emoji">💰</span>
+    <span class="mode-name">月底选餐</span>
+    <span class="mode-desc">按人数枚举单品、套餐、组合、凑单，逐个真实计价</span>
+  </button>
+  <button class="mode" data-mode="blind">
+    <span class="mode-emoji">🎰</span>
+    <span class="mode-name">盲盒选餐</span>
+    <span class="mode-desc">摇老虎机，每个分类一个滚轮，数量自己定</span>
+  </button>
+  <button class="mode" data-mode="health">
+    <span class="mode-emoji">🥗</span>
+    <span class="mode-name">健康选餐</span>
+    <span class="mode-desc">给一个卡路里预算，配出最合适的一餐</span>
+  </button>
+  <button class="mode" data-mode="fortune">
+    <span class="mode-emoji">📜</span>
+    <span class="mode-name">上上签</span>
+    <span class="mode-desc">看今日黄历宜忌，按宜忌抽今日之签</span>
+  </button>
+  <button class="mode" data-mode="gamble">
+    <span class="mode-emoji">🎲</span>
+    <span class="mode-name">愿赌服输</span>
+    <span class="mode-desc">完全随机 5 到 10 样，先签不浪费承诺书</span>
+  </button>
+</nav>
+
+<main id="panel" class="panel">
+  <div class="empty">
+    <p>先选一家门店，再挑一个模式。</p>
+    <p class="muted">所有请求都在本机服务端完成，Token 不会发到浏览器。</p>
+  </div>
+</main>
+
+<footer class="foot">
+  <p>本项目为麦当劳程序员创意开发大赛参赛作品，非麦当劳官方产品。</p>
+  <p class="muted">餐品、价格与库存以麦当劳官方渠道实时结果为准。演示数据为请求时快照。</p>
+</footer>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>

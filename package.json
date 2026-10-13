@@ -1,0 +1,15 @@
+{
+  "name": "mcd-picker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "选餐助手：5 种点餐决策模式，基于麦当劳官方 MCP",
+  "scripts": {
+    "start": "node server/index.js",
+    "probe": "node tools/probe.mjs",
+    "demo": "node tools/demo.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
