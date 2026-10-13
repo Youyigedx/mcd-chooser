@@ -17,6 +17,7 @@
 | `list-nutrition-foods` | 营养数据表 | 健康选餐 |
 | `query-my-account` | 麦享会积分余额 | 月底选餐（积分建议） |
 | `mall-points-products` | 积分商城可兑换餐品 | 月底选餐（积分建议） |
+| `create-order` | 创建订单 | 全部模式（一键下单） |
 
 另外在开发阶段调用过 `auto-bind-coupons`（领取麦麦省券）以验证用券链路。
 
@@ -98,6 +99,33 @@ query-meals ──► 从全部餐品里真随机抽 5 到 10 样
         ▼
 生成带哈希的承诺书凭证 ──► calculate-price
 ```
+
+### 一键下单
+
+这是全项目唯一会产生真实副作用的操作，所以拆成两段，中间强制一次人工确认。
+
+```
+calculate-price ──► 价格 + takeWayList（堂食 eat-in / 外带 take-in-store）
+        │
+        ▼
+前端二次确认（显示门店、取餐方式、商品明细、金额）
+        │
+        ▼
+POST /api/order/create（不带 confirm 会被后端拒绝）
+        │
+        ▼
+create-order ──► orderId + payH5Url
+        │
+        ▼
+用户扫码，或打开麦当劳 APP 完成支付
+```
+
+两个设计上的取舍：
+
+1. **取餐方式来自 `calculate-price` 的 `takeWayList`**，不是写死的。到店订单必须回传 `takeWayCode`，实测可选值是 `eat-in`（堂食）和 `take-in-store`（外带）。
+2. **`confirm: true` 是后端强制的**，不是只靠前端弹窗。这样即使有人直接调 API，也不会误创建订单。
+
+项目本身不代付、不保存支付信息，只把 `payH5Url` 透传给用户。
 
 ## 三、实测到的接口行为
 

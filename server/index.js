@@ -13,6 +13,7 @@ import { hasToken, clearCache } from './mcp.js'
 import { findStores, getMenu, getNutrition, sortByDistance, isOpenNow } from './catalog.js'
 import { groupItems } from './grouping.js'
 import { pointsSummary } from './points.js'
+import { createOrder, previewOrder } from './order.js'
 import { pickMonth } from './modes/month.js'
 import { pickBlind } from './modes/blind.js'
 import { pickHealth } from './modes/health.js'
@@ -147,6 +148,28 @@ const ROUTES = [
       storeCode: requireField(body, 'storeCode'),
       count: num(body.count, 7),
       acceptPromise: body.acceptPromise === true,
+    })],
+
+  // 下单。预览没有副作用；创建会真实生成待支付订单，必须显式 confirm
+  ['POST', '/api/order/preview', (url, body) =>
+    previewOrder({
+      storeCode: requireField(body, 'storeCode'),
+      items: requireField(body, 'items'),
+      orderType: num(body.orderType, 1),
+      beType: num(body.beType, 1),
+      takeWayCode: body.takeWayCode,
+    })],
+  ['POST', '/api/order/create', (url, body) =>
+    createOrder({
+      storeCode: requireField(body, 'storeCode'),
+      items: requireField(body, 'items'),
+      orderType: num(body.orderType, 1),
+      beType: num(body.beType, 1),
+      takeWayCode: body.takeWayCode,
+      addressId: body.addressId,
+      reservationDate: body.reservationDate,
+      remark: body.remark,
+      confirm: body.confirm === true,
     })],
 ]
 

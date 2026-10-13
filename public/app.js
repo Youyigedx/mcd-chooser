@@ -208,7 +208,13 @@ function linesHtml(items) {
     .join('')}</ul>`
 }
 
-function cardHtml({ tag, tagClass = '', title, price, note, lines, extra = '', best = false }) {
+function cardHtml({ tag, tagClass = '', title, price, note, lines, extra = '', best = false, order = null }) {
+  // 下单目标直接塞进 data 属性，用事件委托统一处理，省去逐次绑定
+  const action = order
+    ? `<div class="row" style="margin-top:10px">
+         <button class="btn order-btn" data-order="${esc(JSON.stringify(order))}">一键下单</button>
+       </div>`
+    : ''
   return `<div class="card ${best ? 'best' : ''}">
     <div class="card-head">
       <span class="card-title">${tag ? `<span class="tag ${tagClass}">${esc(tag)}</span>` : ''}${esc(title)}</span>
@@ -217,8 +223,111 @@ function cardHtml({ tag, tagClass = '', title, price, note, lines, extra = '', b
     ${note ? `<div class="card-note">${note}</div>` : ''}
     ${lines || ''}
     ${extra}
+    ${action}
   </div>`
 }
+
+/**
+ * 下单流程：预览 → 二次确认 → 创建。
+ *
+ * 创建订单会在账号里生成一笔真实的待支付订单，所以中间必须有一次人工确认，
+ * 不能从结果卡片直接一步下单。
+ */
+async function orderFlow(order) {
+  if (!order?.items?.length) return
+  renderLoading('正在向官方接口核价……')
+  try {
+    const p = await post('/api/order/preview', { storeCode: order.storeCode, items: order.items })
+
+    render(`
+      <div class="section-title">确认下单</div>
+      <div class="section-sub">到这一步还没有创建任何订单。点「确认下单」才会真实生成待支付订单。</div>
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">${esc(order.title || '订单预览')}</span>
+          <span class="card-price">${yuan(p.price)}</span>
+        </div>
+        <div class="card-note">门店：${esc(state.store?.storeName || order.storeCode)}</div>
+        ${linesHtml(p.lines)}
+        <div class="row" style="margin-top:12px">
+          <span class="muted">取餐方式</span>
+          ${(p.takeWayList || [])
+            .map(
+              (t) =>
+                `<button class="btn ${t.code === p.takeWayCode ? 'primary' : ''}" data-tw="${esc(t.code)}">${esc(
+                  t.title,
+                )}</button>`,
+            )
+            .join('')}
+        </div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button id="confirm-order" class="btn primary">确认下单</button>
+        <button id="cancel-order" class="btn">返回</button>
+      </div>
+      <div id="order-result"></div>`)
+
+    let takeWayCode = p.takeWayCode
+    $$('[data-tw]').forEach((b) =>
+      b.addEventListener('click', () => {
+        takeWayCode = b.dataset.tw
+        $$('[data-tw]').forEach((x) => x.classList.toggle('primary', x.dataset.tw === takeWayCode))
+      }),
+    )
+    $('#cancel-order').addEventListener('click', () => runMode(state.mode))
+
+    $('#confirm-order').addEventListener('click', async () => {
+      const out = $('#order-result')
+      out.innerHTML = '<div class="loading"><div class="spinner"></div>正在创建订单……</div>'
+      try {
+        const r = await post('/api/order/create', {
+          storeCode: order.storeCode,
+          items: order.items,
+          orderType: 1,
+          beType: 1,
+          takeWayCode,
+          confirm: true,
+        })
+        out.innerHTML = `
+          <div class="card best" style="margin-top:14px">
+            <div class="card-head">
+              <span class="card-title">订单已创建</span>
+              <span class="card-price">${yuan(r.amount)}</span>
+            </div>
+            <div class="card-note">
+              订单号 ${esc(r.orderId)}${r.orderStatus ? ' · ' + esc(r.orderStatus) : ''}${r.takeWay ? ' · ' + esc(r.takeWay) : ''}
+            </div>
+            ${r.storeName ? `<div class="card-note">门店：${esc(r.storeName)}</div>` : ''}
+            ${linesHtml((r.goods || []).map((g) => ({ name: g.name, quantity: g.quantity, price: g.price })))}
+            ${
+              r.payH5Url
+                ? `<div class="row" style="margin-top:12px">
+                     <a class="btn primary" href="${esc(r.payH5Url)}" target="_blank" rel="noopener">去支付</a>
+                   </div>`
+                : ''
+            }
+            <div class="card-note" style="margin-top:8px">${esc(r.next || '')}</div>
+          </div>`
+      } catch (e) {
+        out.innerHTML = `<div class="alert">${esc(e.message)}</div>`
+      }
+    })
+  } catch (e) {
+    renderError(e.message, '<div class="row" style="margin-top:12px"><button class="btn" id="back-btn">返回</button></div>')
+    $('#back-btn')?.addEventListener('click', () => runMode(state.mode))
+  }
+}
+
+// 下单按钮用事件委托，一次绑定全程有效
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest?.('.order-btn')
+  if (!btn) return
+  try {
+    orderFlow(JSON.parse(btn.dataset.order))
+  } catch {
+    /* data 坏了就忽略，不该让整页崩掉 */
+  }
+})
 
 /**
  * 积分兑换区块。
@@ -298,6 +407,11 @@ async function runMonth() {
                 : `原价 ${yuan(m.originalPrice)}`,
             lines: linesHtml(m.items),
             best: i === 0,
+            order: {
+              storeCode: state.store.storeCode,
+              title: m.title,
+              items: m.items.map((x) => ({ productCode: x.productCode, quantity: x.quantity })),
+            },
           }),
         )
         .join('')
@@ -309,6 +423,11 @@ async function runMonth() {
             title: m.title,
             price: yuan(m.price),
             lines: linesHtml(m.items),
+            order: {
+              storeCode: state.store.storeCode,
+              title: m.title,
+              items: m.items.map((x) => ({ productCode: x.productCode, quantity: x.quantity })),
+            },
           }),
         )
         .join('')
@@ -367,6 +486,11 @@ async function runBlind() {
               d.priced?.lines?.length ? d.priced.lines : d.items.map((i) => ({ name: i.name, price: i.price })),
             ),
             best: true,
+            order: {
+              storeCode: state.store.storeCode,
+              title: `盲盒摇出 ${d.items.length} 样`,
+              items: d.items.map((i) => ({ productCode: i.code, quantity: 1 })),
+            },
           })}
         </div>`
     } catch (e) {
@@ -415,6 +539,11 @@ async function runHealth() {
                 })),
               ),
               best: i === 0,
+              order: {
+                storeCode: state.store.storeCode,
+                title: `${p.kcal} kcal 配餐`,
+                items: p.items.map((it) => ({ productCode: it.code, quantity: 1 })),
+              },
             }),
           )
           .join('')}</div>`
@@ -481,6 +610,15 @@ async function runFortune() {
                   )}</span></li>`,
               )
               .join('')}</ul>
+            <div class="row" style="margin-top:10px">
+              <button class="btn order-btn" data-order="${esc(
+                JSON.stringify({
+                  storeCode: state.store.storeCode,
+                  title: '今日之签',
+                  items: d.items.map((i) => ({ productCode: i.code, quantity: 1 })),
+                }),
+              )}">一键下单</button>
+            </div>
           </div>
         </div>`
     } catch (e) {
@@ -544,6 +682,11 @@ async function runGamble() {
             price: d.priced?.price != null ? yuan(d.priced.price) : yuan(d.total),
             lines: linesHtml(d.priced?.lines?.length ? d.priced.lines : d.items.map((i) => ({ name: i.name, price: i.price }))),
             best: true,
+            order: {
+              storeCode: state.store.storeCode,
+              title: `愿赌服输 ${d.items.length} 样`,
+              items: d.items.map((i) => ({ productCode: i.code, quantity: 1 })),
+            },
           })}
         </div>`
     } catch (e) {
@@ -589,6 +732,15 @@ findStores().then(() => {
         agree.dispatchEvent(new Event('change'))
       }
       $('#go')?.click()
+      // &order=1 时再往前一步，自动点开第一张卡片的下单确认面板（不会真正下单）
+      if (params.get('order') === '1') {
+        const tryClick = (n = 0) => {
+          const btn = $('.order-btn')
+          if (btn) return btn.click()
+          if (n < 60) setTimeout(() => tryClick(n + 1), 300)
+        }
+        setTimeout(() => tryClick(), 1000)
+      }
     }, 400)
   })
 })
