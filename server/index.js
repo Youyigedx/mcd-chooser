@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url'
 import { hasToken, clearCache } from './mcp.js'
 import { findStores, getMenu, getNutrition, sortByDistance, isOpenNow } from './catalog.js'
 import { groupItems } from './grouping.js'
+import { pointsSummary } from './points.js'
 import { pickMonth } from './modes/month.js'
 import { pickBlind } from './modes/blind.js'
 import { pickHealth } from './modes/health.js'
@@ -121,6 +122,7 @@ const ROUTES = [
   ['GET', '/api/stores', (url) => apiStores(url)],
   ['GET', '/api/menu', (url) => apiMenu(url)],
   ['GET', '/api/nutrition', () => apiNutrition()],
+  ['GET', '/api/points', () => pointsSummary()],
   ['POST', '/api/cache/clear', async () => (clearCache(), { cleared: true })],
 
   // 五个点餐模式

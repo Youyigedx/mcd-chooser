@@ -20,6 +20,7 @@
 import { callData } from '../mcp.js'
 import { getMenu } from '../catalog.js'
 import { groupItems, groupOf } from '../grouping.js'
+import { pointsSummary, pointsAdvice } from '../points.js'
 
 const COMBO_PATTERN = /套餐|件套|随心配|1\+1|拼盘|组合/
 
@@ -209,9 +210,20 @@ export async function pickMonth({ storeCode, people = 1, top = 6, orderType = 1,
     Math.min(top, 4),
   )
 
+  // 积分兑换走的是麦麦商城订单，和门店点餐是两条链路，不能混进同一单合计。
+  // 但它确实是省钱手段，所以单独算一份建议一起给出去。
+  let points = null
+  try {
+    const summary = await pointsSummary()
+    points = { ...summary, advice: pointsAdvice(summary, meals[0]?.price ?? null) }
+  } catch (e) {
+    points = { error: e.message.slice(0, 100) }
+  }
+
   return {
     storeCode,
     people,
+    points,
     counts: {
       menu: menu.length,
       coupons: coupons.length,

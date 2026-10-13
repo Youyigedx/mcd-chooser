@@ -220,6 +220,36 @@ function cardHtml({ tag, tagClass = '', title, price, note, lines, extra = '', b
   </div>`
 }
 
+/**
+ * 积分兑换区块。
+ * 兑换走的是麦麦商城订单，和门店点餐不是同一单，所以单独列，不并进合计。
+ */
+function pointsHtml(p) {
+  if (!p || p.error) return ''
+  const rows = (p.affordable || [])
+    .slice(0, 4)
+    .map(
+      (s) =>
+        `<li><span><span class="tag coupon">${s.point} 分</span>${esc(s.name)}</span><span>面值 ${yuan(
+          s.faceValue,
+        )}</span></li>`,
+    )
+    .join('')
+
+  return `<div class="card" style="margin-top:14px">
+    <div class="card-head">
+      <span class="card-title">积分兑换</span>
+      <span class="card-price">${p.balance} ${esc(p.currency || '积分')}</span>
+    </div>
+    <div class="card-note">
+      商城内有效可兑换 ${p.counts?.onShelf ?? 0} 个（已过滤 ${p.counts?.expired ?? 0} 个过期项）。
+      兑换是独立的商城订单，与上面的门店订单分开结算。
+    </div>
+    ${rows ? `<ul class="lines">${rows}</ul>` : ''}
+    ${(p.advice || []).length ? `<div class="card-note" style="margin-top:8px">${p.advice.map(esc).join('<br>')}</div>` : ''}
+  </div>`
+}
+
 /* ---------------- 各模式 ---------------- */
 
 async function ensureMenu() {
@@ -287,6 +317,7 @@ async function runMonth() {
           枚举 ${d.counts.candidates} 个候选，成功计价 ${d.counts.quoted} 个${d.counts.failed ? `，失败 ${d.counts.failed} 个` : ''}
         </div>
         <div class="result">${meals}</div>
+        ${pointsHtml(d.points)}
         ${extras ? `<div class="section-title" style="margin:20px 0 8px">加购推荐</div><div class="result">${extras}</div>` : ''}
         ${d.failedSamples?.length ? `<div class="muted" style="margin-top:12px">个别候选计价失败：${esc(d.failedSamples.map((f) => f.title).join('、'))}</div>` : ''}`
     } catch (e) {
